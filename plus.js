@@ -498,8 +498,9 @@ ACTIONS.pdf = (b, vid) => printDossier(vById(vid));
 window.addEventListener('afterprint', () => { $('#printArea').innerHTML = ''; });
 
 /* ======================= Versions et nouveautés ======================= */
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.3';
 const CHANGELOG = [
+  ['2.3', '2026-10-21', ['Le logo en haut de l’appli reprend la nouvelle icône']],
   ['2.2', '2026-10-21', ['Numéro de version et liste des nouveautés dans les réglages', 'Fenêtre « Quoi de neuf ? » après chaque mise à jour']],
   ['2.1', '2026-10-21', ['Nouvelle icône : compteur néon, goutte, clé et les trois véhicules']],
   ['2.0', '2026-10-21', ['Prix des carburants autour de moi, en liste et sur une carte', 'Rappels : notifications et ajout des échéances à l’agenda', 'Lecture du compteur kilométrique en photo', 'Budget annuel par véhicule', 'Coût d’un trajet et comparaison des véhicules', 'Moto : carnet de sorties et mode hivernage', 'Crit’Air, conseils ZFE et carte grise collection', 'Dossier d’entretien en PDF', 'Garage séparé pour Béa et bouton vers Mon Programme']],
