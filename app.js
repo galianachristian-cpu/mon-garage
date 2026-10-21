@@ -46,7 +46,7 @@ function safeSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(
 function migrate(s){
   if (!s || !Array.isArray(s.vehicles)) return fresh();
   s.fuels = s.fuels || []; s.maint = s.maint || [];
-  s.vehicles.forEach(v => { v.kmLog = v.kmLog || []; v.base = v.base || {}; v.docs = v.docs || {}; v.plan = v.plan || []; if (!v.paint) v.paint = (v.id === 'auris' || v.id === 'express') ? '#f4f6f8' : v.color; });
+  s.vehicles.forEach(v => { v.kmLog = v.kmLog || []; v.base = v.base || {}; v.docs = v.docs || {}; v.plan = v.plan || []; if (!v.paint || (v.id === 'z750s' && v.paint === v.color && !v.done)) v.paint = (v.id === 'auris' || v.id === 'express') ? '#f4f6f8' : v.id === 'z750s' ? '#1f2937' : v.color; });
   // motorisations confirmées : Auris hybride et Express 1.1 essence de 1992 (si pas encore réglées à la main)
   [['auris', 'auris2-133', 'auris2-hsd'], ['express', 'express2-tce', 'express1-11']].forEach(([id, from, to]) => {
     const v = s.vehicles.find(x => x.id === id && x.variant === from && !x.done); if (!v) return;
@@ -230,9 +230,11 @@ function insights(vfilter){
 
 /* ---------- Silhouettes ---------- */
 /* Silhouettes de profil, dessinées d'après chaque modèle ; `paint` = couleur de carrosserie */
-const PHOTOS = { auris:/^auris2/, express:/^express1/ }; // photos de profil (img/<modèle>.webp), carrosserie blanche
+// photos de profil (img/<modèle>.webp) : motorisation concernée et couleur de carrosserie de la photo
+const PHOTOS = { auris:[/^auris2/, '#f4f6f8'], express:[/^express1/, '#f4f6f8'], z750s:[/^z750s/, '#1f2937'] };
 function sil(v){
-  if (PHOTOS[v.model] && PHOTOS[v.model].test(v.variant || '') && (!v.paint || v.paint === '#f4f6f8')) return `<img class="sil photo-sil" src="img/${v.model}.webp" alt="${esc(v.nom)}">`;
+  const ph = PHOTOS[v.model];
+  if (ph && ph[0].test(v.variant || '') && (!v.paint || v.paint === ph[1])) return `<img class="sil photo-sil${ph[1] === '#1f2937' ? ' dark' : ''}" src="img/${v.model}.webp" alt="${esc(v.nom)}">`;
   const ty = typeOf(v), paint = v.paint || v.color;
   const shape = ty === 'moto' ? 'moto' : v.model === 'express' && /^express1/.test(v.variant) ? 'express1' : ty === 'van' ? 'van' : 'hatch';
   const k = Math.random().toString(36).slice(2, 7), sh = 'sh' + k, gl = 'gl' + k;
