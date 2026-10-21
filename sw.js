@@ -1,6 +1,6 @@
 /* Mon Garage : service worker pour l'installation et l'usage hors ligne */
-const CACHE = 'mon-garage-app-v3';
-const CORE = ['./', './index.html', './app.js', './data.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './img/auris.webp', './img/express.webp', './img/z750s.webp'];
+const CACHE = 'mon-garage-app-v4';
+const CORE = ['./', './index.html', './app.js', './data.js', './plus.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './img/auris.webp', './img/express.webp', './img/z750s.webp'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
@@ -21,4 +21,13 @@ self.addEventListener('fetch', e => {
     e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); return r; })));
   }
   // le reste (base Firestore, API Claude) passe directement au réseau
+});
+
+// clic sur une notification de rappel : on rouvre l'appli
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(cs => {
+    const c = cs.find(x => 'focus' in x);
+    return c ? c.focus() : self.clients.openWindow((e.notification.data && e.notification.data.url) || './');
+  }));
 });
