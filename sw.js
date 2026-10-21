@@ -1,6 +1,6 @@
 /* Mon Garage : service worker pour l'installation et l'usage hors ligne */
-const CACHE = 'mon-garage-app-v2';
-const CORE = ['./', './index.html', './app.js', './data.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './img/auris.webp', './img/express.webp'];
+const CACHE = 'mon-garage-app-v3';
+const CORE = ['./', './index.html', './app.js', './data.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './img/auris.webp', './img/express.webp', './img/z750s.webp'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
