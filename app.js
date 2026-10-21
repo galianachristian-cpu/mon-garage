@@ -566,7 +566,7 @@ function viewSettings(){
   <button class="btn block" style="margin-top:10px" data-x="vnew">＋ Ajouter un véhicule</button>
   <h2 class="sec">Zone sensible</h2>
   <button class="btn danger block" data-x="reset">🗑️ Tout effacer</button>
-  <p class="hint" style="text-align:center;margin:18px 0">Mon Garage · données : ${S.fuels.length} pleins, ${S.maint.length} entretiens</p>`;
+  <p class="hint" style="text-align:center;margin:18px 0">Mon Garage ${typeof APP_VERSION !== 'undefined' ? 'v' + APP_VERSION + ' ' : ''}· données : ${S.fuels.length} pleins, ${S.maint.length} entretiens</p>`;
 }
 
 /* ---------- Panneau du bas ---------- */
