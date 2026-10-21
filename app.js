@@ -230,7 +230,9 @@ function insights(vfilter){
 
 /* ---------- Silhouettes ---------- */
 /* Silhouettes de profil, dessinées d'après chaque modèle ; `paint` = couleur de carrosserie */
+const PHOTOS = { auris:/^auris2/, express:/^express1/ }; // photos de profil (img/<modèle>.webp), carrosserie blanche
 function sil(v){
+  if (PHOTOS[v.model] && PHOTOS[v.model].test(v.variant || '') && (!v.paint || v.paint === '#f4f6f8')) return `<img class="sil photo-sil" src="img/${v.model}.webp" alt="${esc(v.nom)}">`;
   const ty = typeOf(v), paint = v.paint || v.color;
   const shape = ty === 'moto' ? 'moto' : v.model === 'express' && /^express1/.test(v.variant) ? 'express1' : ty === 'van' ? 'van' : 'hatch';
   const k = Math.random().toString(36).slice(2, 7), sh = 'sh' + k, gl = 'gl' + k;
