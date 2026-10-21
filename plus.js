@@ -496,3 +496,25 @@ async function printDossier(v){
 }
 ACTIONS.pdf = (b, vid) => printDossier(vById(vid));
 window.addEventListener('afterprint', () => { $('#printArea').innerHTML = ''; });
+
+/* ======================= Versions et nouveautés ======================= */
+const APP_VERSION = '2.2';
+const CHANGELOG = [
+  ['2.2', '2026-10-21', ['Numéro de version et liste des nouveautés dans les réglages', 'Fenêtre « Quoi de neuf ? » après chaque mise à jour']],
+  ['2.1', '2026-10-21', ['Nouvelle icône : compteur néon, goutte, clé et les trois véhicules']],
+  ['2.0', '2026-10-21', ['Prix des carburants autour de moi, en liste et sur une carte', 'Rappels : notifications et ajout des échéances à l’agenda', 'Lecture du compteur kilométrique en photo', 'Budget annuel par véhicule', 'Coût d’un trajet et comparaison des véhicules', 'Moto : carnet de sorties et mode hivernage', 'Crit’Air, conseils ZFE et carte grise collection', 'Dossier d’entretien en PDF', 'Garage séparé pour Béa et bouton vers Mon Programme']],
+  ['1.4', '2026-10-21', ['Vraies photos de l’Auris, de l’Express et de la Z750 S']],
+  ['1.3', '2026-10-21', ['L’appli a son propre projet et sa propre adresse']],
+  ['1.2', '2026-10-21', ['Nouveaux dessins des véhicules et couleur de carrosserie']],
+  ['1.1', '2026-10-21', ['Fiches Toyota Auris hybride et Renault Express 1.1 de 1992']],
+  ['1.0', '2026-10-21', ['Première version : pleins, scan des tickets, consommation, entretien, conseils et mécano IA']]
+];
+const changeHTML = list => list.map(([v, d, items]) => `<div class="card" style="margin-top:10px"><div class="row"><b>Version ${v}</b>${v === APP_VERSION ? '<span class="badge ok">actuelle</span>' : ''}<span class="spacer"></span><span class="hint" style="margin:0">${fmtD(d)}</span></div><ul style="margin:8px 0 0 18px;color:var(--soft);font-size:13.5px;line-height:1.55">${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`).join('');
+hook('settings', () => `<h2 class="sec">Application</h2><button class="item" data-x="changelog" style="--vc:#818cf8"><span class="ic">✨</span><div class="tx"><b>Mon Garage · version ${APP_VERSION}</b><small>Mise à jour du ${fmtD(CHANGELOG[0][1])} · voir les nouveautés</small></div><span class="muted">›</span></button>`);
+ACTIONS.changelog = () => openSheet(`<h2>✨ Nouveautés</h2><p class="hint">Version installée : <b>${APP_VERSION}</b></p>${changeHTML(CHANGELOG)}`);
+hook('start', () => {
+  const seen = safeGet('garage_version', null) || (S.updated ? '2.1' : null); safeSet('garage_version', APP_VERSION);
+  if (!seen || seen === APP_VERSION) return;
+  const news = CHANGELOG.filter(([v]) => v.localeCompare(seen, undefined, { numeric:true }) > 0);
+  if (news.length) setTimeout(() => openSheet(`<h2>🎉 Quoi de neuf ?</h2><p class="hint">Mon Garage est passé de la version ${esc(seen)} à la version <b>${APP_VERSION}</b>.</p>${changeHTML(news)}<button class="btn pri block" style="margin-top:14px" data-x="close">Super !</button>`), 900);
+});
