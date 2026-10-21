@@ -225,6 +225,7 @@ textarea.inp{min-height:80px;resize:vertical}
 <header class="top"><div class="wrap">
   <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#0a0d14" stroke-width="2.4" stroke-linecap="round"><path d="M4.5 16.5a8 8 0 1 1 15 0"/><path d="M12 13l4-4"/><circle cx="12" cy="13.5" r="1.6" fill="#0a0d14"/></svg></div>
   <h1>Mon Garage<small id="subtitle">Pleins, entretien et conseils</small></h1>
+  <a class="pill" href="https://galianachristian-cpu.github.io/mon-app-sport/" title="Mon Programme (sport)" aria-label="Ouvrir Mon Programme" style="padding:6px 9px">🏋️</a>
   <button class="pill" id="sync" aria-label="Réglages"><span class="dot" id="syncDot"></span><span id="syncTxt">…</span><span>⚙️</span></button>
 </div></header>
 
@@ -241,9 +242,11 @@ textarea.inp{min-height:80px;resize:vertical}
 <div class="ov" id="ov"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
+<div id="printArea"></div>
 <input type="file" id="fileIn" accept="image/*" capture="environment" hidden>
 
 <script src="data.js"></script>
 <script src="app.js"></script>
+<script src="plus.js"></script>
 </body>
 </html>

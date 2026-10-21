@@ -28,7 +28,13 @@ const sum = (a, f) => a.reduce((s, x) => s + (f ? f(x) : x), 0);
 const sortD = (a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : (a.km || 0) - (b.km || 0));
 
 /* ---------- Données ---------- */
-const LS = 'garage_v1', KEY_AI = 'garage_ai_key', KEY_MODEL = 'garage_ai_model';
+/* Profil : « moi » (garage d'origine) ou un autre membre du foyer, chacun avec ses données */
+const PROFILES = [{ id:'moi', nom:'Moi' }, { id:'bea', nom:'Béa' }];
+const PROFILE = (() => { try{ const p = JSON.parse(localStorage.getItem('garage_profile')); return PROFILES.some(x => x.id === p) ? p : 'moi'; }catch(e){ return 'moi'; } })();
+const LS = PROFILE === 'moi' ? 'garage_v1' : 'garage_v1_' + PROFILE, KEY_AI = 'garage_ai_key', KEY_MODEL = 'garage_ai_model';
+/* Points d'accroche pour les modules complémentaires (plus.js) */
+const EXTRA_VIEWS = {}, ACTIONS = {}, INSIGHT_HOOKS = [], HOOKS = {};
+const HOOK = (k, ...a) => (HOOKS[k] || []).map(f => f(...a)).join('');
 const modelOf = v => MODELS[v.model] || { marque:'', modele:v.nom, type:v.type || 'car', color:v.color, variants:{} };
 const variantOf = v => modelOf(v).variants[v.variant] || { nom:'Personnalisé', annees:'', specs:[], plan:[] };
 const typeOf = v => modelOf(v).type;
@@ -40,12 +46,12 @@ function newVehicle(model, variant, o = {}){
     type: M ? M.type : (o.type || 'car'), kmLog: [], base: {}, docs: {}, plan: clone(V ? V.plan : (o.type === 'moto' ? PLAN_MOTO : PLAN_CAR)),
     reservoir: V ? V.reservoir : 50, conso: V ? V.conso : 6, carb: V ? V.carb : 'SP95-E10', created: today() }, o.extra || {});
 }
-function fresh(){ return migrate({ v:1, updated:0, setup:false, vehicles: DEFAULT_VEHICLES.map(d => newVehicle(d.model, MODELS[d.model].def, d)), fuels:[], maint:[] }); }
+function fresh(){ return migrate({ v:1, updated:0, setup: PROFILE !== 'moi', vehicles: PROFILE === 'moi' ? DEFAULT_VEHICLES.map(d => newVehicle(d.model, MODELS[d.model].def, d)) : [], fuels:[], maint:[] }); }
 function safeGet(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } }
 function safeSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 function migrate(s){
   if (!s || !Array.isArray(s.vehicles)) return fresh();
-  s.fuels = s.fuels || []; s.maint = s.maint || [];
+  s.fuels = s.fuels || []; s.maint = s.maint || []; s.rides = s.rides || [];
   s.vehicles.forEach(v => { v.kmLog = v.kmLog || []; v.base = v.base || {}; v.docs = v.docs || {}; v.plan = v.plan || []; if (!v.paint || (v.id === 'z750s' && v.paint === v.color && !v.done)) v.paint = (v.id === 'auris' || v.id === 'express') ? '#f4f6f8' : v.id === 'z750s' ? '#1f2937' : v.color; });
   // motorisations confirmées : Auris hybride et Express 1.1 essence de 1992 (si pas encore réglées à la main)
   [['auris', 'auris2-133', 'auris2-hsd'], ['express', 'express2-tce', 'express1-11']].forEach(([id, from, to]) => {
@@ -68,7 +74,7 @@ const firebaseConfig = {
 };
 let db = null, pushTimer = null, remoteOk = false;
 try { if (window.firebase){ firebase.initializeApp(firebaseConfig); db = firebase.firestore(); try{ db.enablePersistence({ synchronizeTabs:true }).catch(() => {}); }catch(e){} } } catch(e){ db = null; }
-const DOCG = () => db.collection('users').doc('garage');
+const DOCG = () => db.collection('users').doc(PROFILE === 'moi' ? 'garage' : 'garage-' + PROFILE);
 
 function setStatus(cls, txt){ $('#syncDot').className = 'dot ' + cls; $('#syncTxt').textContent = txt; }
 function save(){
@@ -225,6 +231,7 @@ function insights(vfilter){
     const avg = sum(prev) / 3, dayN = new Date().getDate(), dim = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
     if (avg > 0 && dayN >= 5){ const proj = cur / dayN * dim; if (proj > avg * 1.3) out.push({ lv:'warn', e:'💸', t:'Mois plus coûteux que d’habitude', p:'Projection : ≈ ' + eur(proj, 0) + ' ce mois-ci contre ' + eur(avg, 0) + ' en moyenne sur les 3 derniers mois.' }); }
   }
+  INSIGHT_HOOKS.forEach(h => { try{ out.push(...h(vfilter)); }catch(e){} });
   return out.sort((a, b) => ORDER[a.lv] - ORDER[b.lv]);
 }
 
@@ -349,7 +356,7 @@ window.addEventListener('popstate', () => { if (ignorePop){ ignorePop = false; r
 
 function render(){
   $$('.nav [data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === view || (view === 'vehicle' && b.dataset.nav === 'home')));
-  const V = { home:viewHome, fuel:viewFuel, maint:viewMaint, ai:viewAI, vehicle:viewVehicle, settings:viewSettings }[view] || viewHome;
+  const V = Object.assign({ home:viewHome, fuel:viewFuel, maint:viewMaint, ai:viewAI, vehicle:viewVehicle, settings:viewSettings }, EXTRA_VIEWS)[view] || viewHome;
   $('#app').innerHTML = `<div class="fade">${V()}</div>`;
   loadThumbs();
 }
@@ -368,7 +375,7 @@ function viewHome(){
   const ins = insights().slice(0, 3);
   const setup = !S.setup ? `<div class="card" style="margin-top:14px;border-color:#3b4a7a;background:linear-gradient(135deg,rgba(56,189,248,.12),rgba(129,140,248,.12))">
       <b style="font-size:16px">👋 Bienvenue dans ton garage</b>
-      <p class="soft" style="font-size:13.5px;margin:6px 0 10px;line-height:1.45">Tes 3 véhicules sont prêts avec leur fiche technique et leur plan d'entretien. Vérifie pour chacun la <b>motorisation exacte</b> et le <b>kilométrage actuel</b>.</p>
+      <p class="soft" style="font-size:13.5px;margin:6px 0 10px;line-height:1.45">Tes ${S.vehicles.length} véhicules sont prêts avec leur fiche technique et leur plan d'entretien. Vérifie pour chacun la <b>motorisation exacte</b> et le <b>kilométrage actuel</b>.</p>
       <div class="row">${S.vehicles.map(v => `<button class="btn sm" ${vstyle(v)} data-x="vedit" data-v="${v.id}">${v.done ? '✅' : '⚙️'} ${esc(v.nom.split(' ').slice(-2).join(' '))}</button>`).join('')}<span class="spacer"></span><button class="btn sm" data-x="setupdone">C’est bon</button></div></div>` : '';
   return `${setup}
   <section class="hero">
@@ -382,8 +389,9 @@ function viewHome(){
     </div>
     <div class="hint" style="margin-top:10px">Depuis le 1er janvier : <b class="soft">${eur(year, 0)}</b></div>
   </section>
+  ${HOOK('home')}
   <h2 class="sec">Mes véhicules<span class="spacer"></span><button data-x="vnew">＋ Ajouter</button></h2>
-  <div class="vlist">${S.vehicles.map(vehicleCard).join('')}</div>
+  <div class="vlist">${S.vehicles.length ? S.vehicles.map(vehicleCard).join('') : '<div class="card"><div class="empty"><div class="e">🚘</div><b>Aucun véhicule</b><p>Ajoute ton premier véhicule pour suivre ses pleins et son entretien.</p><button class="btn pri" style="margin-top:12px" data-x="vnew">＋ Ajouter un véhicule</button></div></div>'}</div>
   ${ins.length ? `<h2 class="sec">✨ Conseils du moment<span class="spacer"></span><button data-nav="ai">Tout voir</button></h2>${ins.map(insHTML).join('')}` : ''}
   ${recentHTML()}`;
 }
@@ -489,12 +497,12 @@ function viewVehicle(){
   }
   if (vtab === 'docs'){
     const D = v.docs, row = (k, n, val) => `<dt>${n}</dt><dd>${val ? esc(val) : '<span class="muted">–</span>'}</dd>`;
-    body = `<div class="card spec" style="margin-top:14px"><h3>Papiers du véhicule</h3><dl>${row('immat', 'Immatriculation', D.immat)}${row('vin', 'N° de série (VIN)', D.vin)}${row('ct', 'Prochain contrôle technique', D.ct && fmtD(D.ct))}${row('assu', 'Échéance assurance', D.assu && fmtD(D.assu))}${row('assureur', 'Assureur', D.assureur)}${row('achat', 'Date d’achat', D.achat && fmtD(D.achat))}</dl><button class="btn block" style="margin-top:14px" data-x="vedit" data-v="${v.id}">✏️ Modifier</button></div>`;
+    body = `<div class="card spec" style="margin-top:14px"><h3>Papiers du véhicule</h3><dl>${row('immat', 'Immatriculation', D.immat)}${row('vin', 'N° de série (VIN)', D.vin)}${row('ct', 'Prochain contrôle technique', D.ct && fmtD(D.ct))}${row('assu', 'Échéance assurance', D.assu && fmtD(D.assu))}${row('assureur', 'Assureur', D.assureur)}${row('achat', 'Date d’achat', D.achat && fmtD(D.achat))}</dl><button class="btn block" style="margin-top:14px" data-x="vedit" data-v="${v.id}">✏️ Modifier</button></div>${HOOK('vDocs', v)}`;
   }
   return `<section class="vhero" ${vstyle(v)}>
     <button class="back" data-nav="home">‹ Garage</button>
     <div class="row"><div style="flex:1;min-width:0"><h2>${esc(v.nom)}</h2><div class="muted" style="font-size:13px">${esc(variantOf(v).nom)}</div></div><button class="btn sm" data-x="vedit" data-v="${v.id}">✏️</button></div>
-    ${sil(v)}
+    ${sil(v)}${HOOK('vHero', v)}
     <div class="kpis"><div class="kpi"><b class="num">${nf(curKm(v))}</b><span>km au compteur</span></div><div class="kpi"><b class="num">${nf(kmRate(v) * 30.4, 0)}</b><span>km / mois</span></div><div class="kpi"><b class="num">${avgConso(v.id) ? nf(avgConso(v.id), 1) : '–'}</b><span>L/100 réel</span></div></div>
     <div class="row" style="margin-top:12px"><button class="btn sm" data-x="fuel" data-v="${v.id}">⛽ Plein</button><button class="btn sm" data-x="scan" data-k="fuel" data-v="${v.id}">📷 Ticket</button><button class="btn sm" data-x="kmlog" data-v="${v.id}">📏 Relevé km</button><button class="btn sm" data-x="ask" data-v="${v.id}">🤖 Mécano IA</button></div>
   </section>
@@ -519,6 +527,7 @@ function vOverview(v){
     <div class="card"><div class="hint" style="margin:0">Dernière conso</div><b class="num" style="font-size:19px">${ser.length ? nf(ser[ser.length - 1].c, 1) : '–'}</b></div>
   </div>
   ${ins.length ? `<h2 class="sec">✨ Conseils</h2>${ins.map(insHTML).join('')}` : ''}
+  ${HOOK('vOverview', v)}
   <h2 class="sec">Graphiques</h2>
   <div class="card"><b>Dépenses par mois</b>${barChart(monthsRows(v.id), [{ k:'f', n:'Carburant', c:v.color }, { k:'m', n:'Entretien', c:'#818cf8' }])}</div>
   <div class="card"><b>Consommation (L/100 km)</b><span class="hint"> · ligne jaune : ${nf(v.conso, 1)} constructeur</span>${lineChart(ser.slice(-15).map(s => ({ x:fmtDs(s.d), y:s.c })), { color:v.color, ref:v.conso })}</div>
@@ -543,7 +552,7 @@ function viewAI(){
 /* ---------- Réglages ---------- */
 function viewSettings(){
   const key = safeGet(KEY_AI, ''), model = safeGet(KEY_MODEL, 'claude-opus-5-5');
-  return `<h2 class="sec">Sauvegarde</h2>
+  return `${HOOK('settings')}<h2 class="sec">Sauvegarde</h2>
   <div class="card"><div class="row"><span style="font-size:26px">☁️</span><div style="flex:1"><b>${db ? (remoteOk ? 'Synchronisée en ligne' : 'Connexion en cours…') : 'Sur cet appareil uniquement'}</b><p class="hint" style="margin:2px 0 0">Même base Firebase que l’appli Mon Programme : tes données suivent sur téléphone et ordinateur. Les photos des tickets restent sur l’appareil.</p></div></div>
   <div class="row" style="margin-top:12px"><button class="btn sm" data-x="export">⬇️ Sauvegarde (.json)</button><button class="btn sm" data-x="csv">📊 Export tableur (.csv)</button><button class="btn sm" data-x="import">⬆️ Restaurer</button></div></div>
   <h2 class="sec">Intelligence artificielle (optionnel)</h2>
@@ -576,6 +585,7 @@ function addMenu(){
     <button class="action" data-x="maint"><span class="e">🔧</span><div><b>Entretien / réparation</b><small>Vidange, pneus, freins, chaîne…</small></div></button>
     <button class="action" data-x="scan" data-k="maint"><span class="e">🧾</span><div><b>Scanner une facture de garage</b><small>Montant, date et travaux détectés</small></div></button>
     <button class="action" data-x="kmlog"><span class="e">📏</span><div><b>Relevé kilométrique</b><small>Mettre à jour le compteur pour des prévisions justes</small></div></button>
+    ${HOOK('addMenu')}
   </div>`);
 }
 
@@ -1002,16 +1012,18 @@ document.addEventListener('click', e => {
     case 'vnew': vehicleForm(null); break;
     case 'setupdone': S.setup = true; save(); render(); break;
     case 'ask': fromSheet(() => askForm(vid, b.dataset.q)); break;
-    case 'insact': { const a = b.dataset.a; if (a === 'item') itemSheet(vid, b.dataset.i); else if (a === 'plan'){ vcur = vid; vtab = 'plan'; go('vehicle'); } else if (a === 'edit') vehicleForm(vid); else if (a === 'fuel') fuelForm(null, { vid }); break; }
+    case 'insact': { const a = b.dataset.a; if (a === 'item') itemSheet(vid, b.dataset.i); else if (a === 'plan'){ vcur = vid; vtab = 'plan'; go('vehicle'); } else if (a === 'edit') vehicleForm(vid); else if (a === 'fuel') fuelForm(null, { vid }); else if (ACTIONS['ins:' + a]) ACTIONS['ins:' + a](vid, b.dataset.i); break; }
     case 'savekey': safeSet(KEY_AI, $('#aiKey').value.trim()); safeSet(KEY_MODEL, $('#aiModel').value); toast($('#aiKey').value.trim() ? '🤖 IA activée' : 'Clé retirée'); render(); break;
     case 'export': download('mon-garage-' + today() + '.json', JSON.stringify(S, null, 1), 'application/json'); break;
     case 'csv': exportCSV(); break;
     case 'import': importJSON(); break;
     case 'reset': confirmSheet('Effacer tous les véhicules, pleins et entretiens ?', '🗑️ Tout effacer', () => { S = fresh(); save(); view = 'home'; render(); }); break;
+    default: if (ACTIONS[x]) ACTIONS[x](b, vid, fromSheet);
   }
 });
 
 /* ---------- Démarrage ---------- */
 document.querySelector('.top .pill').addEventListener('click', () => go('settings'));
-render(); startSync();
+// démarrage une fois tous les scripts chargés (plus.js ajoute ses écrans et conseils)
+window.addEventListener('DOMContentLoaded', () => { render(); startSync(); HOOK('start'); });
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
