@@ -498,8 +498,9 @@ ACTIONS.pdf = (b, vid) => printDossier(vById(vid));
 window.addEventListener('afterprint', () => { $('#printArea').innerHTML = ''; });
 
 /* ======================= Versions et nouveautés ======================= */
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.4';
 const CHANGELOG = [
+  ['2.4', '2026-10-25', ['Nouveau look animé : fond lumineux, apparition en cascade, chiffres qui défilent', 'Les véhicules arrivent en glissant, reflet et lueur à leur couleur', 'Anneau « santé de l’entretien » sur chaque fiche véhicule', 'Graphiques et jauges qui se dessinent, onde au toucher', 'Écran d’ouverture, laser pendant le scan, confettis à chaque plein enregistré']],
   ['2.3', '2026-10-21', ['Le logo en haut de l’appli reprend la nouvelle icône']],
   ['2.2', '2026-10-21', ['Numéro de version et liste des nouveautés dans les réglages', 'Fenêtre « Quoi de neuf ? » après chaque mise à jour']],
   ['2.1', '2026-10-21', ['Nouvelle icône : compteur néon, goutte, clé et les trois véhicules']],
